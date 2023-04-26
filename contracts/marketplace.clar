@@ -202,7 +202,7 @@
     ;; if vote 100% agree -> sent stx right away
     (if (is-eq satisfaction-vote vote-1)
       (begin
-        (try! (stx-transfer? (get amount gig-info) tx-sender (as-contract tx-sender)))
+        (as-contract (try! (stx-transfer? (get amount gig-info) tx-sender (get from gig-info))))
         (ok (map-set gig gig-id (merge gig-info {status: "completed" , satisfaction: satisfaction-vote, completely-paid: true})))
       )
       ;; if vote 100% disagree -> start dispute

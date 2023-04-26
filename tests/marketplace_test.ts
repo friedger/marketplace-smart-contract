@@ -126,9 +126,9 @@ Clarinet.test({
   },
 });
 
-// name: 'Ensure that two clients can start thress gigs and send money, and next block send again to others',
+// name: 'Ensure that two clients can start three gigs and send money, and next block send again to others',
 Clarinet.test({
-  name: 'Ensure that two clients can start thress gigs and send money, and next block send again to others',
+  name: 'Ensure that two clients can start three gigs and send money, and next block send again to others',
   // block 1
   // w1 -> w2
   // w1 -> w3
@@ -518,6 +518,9 @@ Clarinet.test({
     {
       block.receipts[0].result.expectErr().expectUint(ERR_NOT_CLIENT);
       block.receipts[1].result.expectOk().expectBool(true);
+      assertEquals(block.receipts[1].events[0].stx_transfer_event.sender, CONTRACT_ADDRESS);
+      assertEquals(block.receipts[1].events[0].stx_transfer_event.recipient, wallet_1.address);
+      assertEquals(block.receipts[1].events[0].stx_transfer_event.amount, `${price_gig - price_gig * COMMISSION}`);
       assertEquals(block.receipts.length, 2);
       assertEquals(block.height, 4);
     }
