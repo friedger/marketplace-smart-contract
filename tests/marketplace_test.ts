@@ -519,7 +519,7 @@ Clarinet.test({
       block.receipts[0].result.expectErr().expectUint(ERR_NOT_CLIENT);
       block.receipts[1].result.expectOk().expectBool(true);
       assertEquals(block.receipts[1].events[0].stx_transfer_event.sender, CONTRACT_ADDRESS);
-      assertEquals(block.receipts[1].events[0].stx_transfer_event.recipient, wallet_1.address);
+      assertEquals(block.receipts[1].events[0].stx_transfer_event.recipient, wallet_2.address);
       assertEquals(block.receipts[1].events[0].stx_transfer_event.amount, `${price_gig - price_gig * COMMISSION}`);
       assertEquals(block.receipts.length, 2);
       assertEquals(block.height, 4);
