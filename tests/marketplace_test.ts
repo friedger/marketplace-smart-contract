@@ -514,14 +514,16 @@ Clarinet.test({
     block = chain.mineBlock([
       Tx.contractCall(CONTRACT_MP, FNC_SATISFACTION_AS_CLIENT, [types.uint(1), types.ascii(VOTE_1)], wallet_3.address),
       Tx.contractCall(CONTRACT_MP, FNC_SATISFACTION_AS_CLIENT, [types.uint(1), types.ascii(VOTE_1)], wallet_1.address),
+      Tx.contractCall(CONTRACT_MP, FNC_SATISFACTION_AS_CLIENT, [types.uint(1), types.ascii(VOTE_2)], wallet_1.address),
     ]);
     {
       block.receipts[0].result.expectErr().expectUint(ERR_NOT_CLIENT);
       block.receipts[1].result.expectOk().expectBool(true);
+      block.receipts[2].result.expectErr().expectUint(ERR_NOT_ACCEPTED);
       assertEquals(block.receipts[1].events[0].stx_transfer_event.sender, CONTRACT_ADDRESS);
       assertEquals(block.receipts[1].events[0].stx_transfer_event.recipient, wallet_2.address);
       assertEquals(block.receipts[1].events[0].stx_transfer_event.amount, `${price_gig - price_gig * COMMISSION}`);
-      assertEquals(block.receipts.length, 2);
+      assertEquals(block.receipts.length, 3);
       assertEquals(block.height, 4);
     }
 
@@ -669,7 +671,7 @@ Clarinet.test({
       assertEquals(block.height, 3);
     }
 
-    // vote work as vote-1
+    // vote work as vote-2 and vote-3
     block = chain.mineBlock([
       Tx.contractCall(CONTRACT_MP, FNC_SATISFACTION_AS_CLIENT, [types.uint(1), types.ascii(VOTE_2)], wallet_1.address),
       Tx.contractCall(CONTRACT_MP, FNC_SATISFACTION_AS_CLIENT, [types.uint(2), types.ascii(VOTE_3)], wallet_1.address),
@@ -817,7 +819,7 @@ Clarinet.test({
       assertEquals(block.height, 3);
     }
 
-    // vote work as vote-1
+    // vote work as vote-2 and vote-3
     block = chain.mineBlock([
       Tx.contractCall(CONTRACT_MP, FNC_SATISFACTION_AS_CLIENT, [types.uint(1), types.ascii(VOTE_2)], wallet_1.address),
       Tx.contractCall(CONTRACT_MP, FNC_SATISFACTION_AS_CLIENT, [types.uint(2), types.ascii(VOTE_3)], wallet_1.address),
@@ -829,7 +831,7 @@ Clarinet.test({
       assertEquals(block.height, 4);
     }
 
-    // acceptance true for satisfaction vote
+    // acceptance false for satisfaction vote
     block = chain.mineBlock([
       Tx.contractCall(CONTRACT_MP, FNC_ACCEPTANCE_AS_ARTIST, [types.uint(1), types.bool(false)], wallet_2.address),
       Tx.contractCall(CONTRACT_MP, FNC_ACCEPTANCE_AS_ARTIST, [types.uint(2), types.bool(false)], wallet_3.address),
@@ -977,9 +979,9 @@ Clarinet.test({
 // case vote-2 -> in dispute -> upgrade to vote-1
 // case vote-3 -> in dispute -> upgrade to vote-1
 // case vote-3 -> in dispute -> upgrade to vote-2
-// name: 'Ensure that dao can vote the same as client and those amounts are sent',
+// name: 'Ensure that dao can vote different than client and those amounts are sent',
 Clarinet.test({
-  name: 'Ensure that dao can vote the same as client and those amounts are sent',
+  name: 'Ensure that dao can vote the different than client and those amounts are sent',
   async fn(chain: Chain, accounts: Map<string, Account>) {
     // send funds to smart contract
     const deployer = accounts.get('deployer')!;
@@ -1040,7 +1042,7 @@ Clarinet.test({
       assertEquals(block.height, 3);
     }
 
-    // vote work as vote-1
+    // vote work as vote-2, vote-3, vote-3
     block = chain.mineBlock([
       Tx.contractCall(CONTRACT_MP, FNC_SATISFACTION_AS_CLIENT, [types.uint(1), types.ascii(VOTE_2)], wallet_1.address),
       Tx.contractCall(CONTRACT_MP, FNC_SATISFACTION_AS_CLIENT, [types.uint(2), types.ascii(VOTE_3)], wallet_1.address),
@@ -1054,7 +1056,7 @@ Clarinet.test({
       assertEquals(block.height, 4);
     }
 
-    // acceptance true for satisfaction vote
+    // acceptance false for satisfaction vote
     block = chain.mineBlock([
       Tx.contractCall(CONTRACT_MP, FNC_ACCEPTANCE_AS_ARTIST, [types.uint(1), types.bool(false)], wallet_2.address),
       Tx.contractCall(CONTRACT_MP, FNC_ACCEPTANCE_AS_ARTIST, [types.uint(2), types.bool(false)], wallet_3.address),
@@ -1067,7 +1069,7 @@ Clarinet.test({
     assertEquals(block.receipts.length, 3);
     assertEquals(block.height, 5);
 
-    // dao vote same
+    // dao votes differently
     block = chain.mineBlock([
       Tx.contractCall(CONTRACT_MP, FNC_DAO_SATISFACTION, [types.uint(1), types.ascii(VOTE_1)], deployer.address),
       Tx.contractCall(CONTRACT_MP, FNC_DAO_SATISFACTION, [types.uint(2), types.ascii(VOTE_1)], deployer.address),
@@ -1162,9 +1164,9 @@ Clarinet.test({
 // case succesfull vote-4 -> in dispute -> vote-4
 // time expired 2 -> in dispute vote-3
 // time expired 2 -> in dispute vote-4
-// name: 'Ensure that can set in dispute from vote-4 and expire and dao vote accordingly a satisfaction-dispute vote ',
+// name: 'Ensure that dao can set in dispute from vote-4 and expire and dao vote accordingly a satisfaction-dispute vote ',
 Clarinet.test({
-  name: 'Ensure that can set in dispute from vote-4 and expire ; DAO vote accordingly a satisfaction-dispute vote ',
+  name: 'Ensure that dao can set in dispute from vote-4 and expire ; DAO vote accordingly a satisfaction-dispute vote ',
   async fn(chain: Chain, accounts: Map<string, Account>) {
     // send funds to smart contract
     const deployer = accounts.get('deployer')!;
@@ -1235,7 +1237,7 @@ Clarinet.test({
       assertEquals(block.height, 4);
     }
 
-    // dao vote same
+    // dao vote different and same
     block = chain.mineBlock([
       Tx.contractCall(CONTRACT_MP, FNC_DAO_SATISFACTION, [types.uint(1), types.ascii(VOTE_3)], deployer.address),
       Tx.contractCall(CONTRACT_MP, FNC_DAO_SATISFACTION, [types.uint(2), types.ascii(VOTE_4)], deployer.address),
@@ -1397,7 +1399,7 @@ Clarinet.test({
 // g2 - artist
 // g3 - fail client
 // g4 - fail artist
-// name: "Ensure that can set in dispute as creator or client before expire date, and can't afterwards",
+// name: "Ensure that client and artist can set in dispute as creator or client before expire date, and can't afterwards",
 Clarinet.test({
   name: "Ensure that can set in dispute as creator or client before expire date, and can't afterwards",
   async fn(chain: Chain, accounts: Map<string, Account>) {
@@ -1470,7 +1472,7 @@ Clarinet.test({
       assertEquals(block.height, 4);
     }
 
-    // dao vote same
+    // dao votes for gig_1 and gig_2
     block = chain.mineBlock([
       Tx.contractCall(CONTRACT_MP, FNC_DAO_SATISFACTION, [types.uint(1), types.ascii(VOTE_3)], deployer.address),
       Tx.contractCall(CONTRACT_MP, FNC_DAO_SATISFACTION, [types.uint(2), types.ascii(VOTE_4)], deployer.address),
@@ -1580,13 +1582,14 @@ Clarinet.test({
 
 // check is expired
 // 1 transaction
-// name: 'Ensure that client can start gig and send money',
+// name: 'Ensure that user can check corectly if transaction is expired'
 Clarinet.test({
-  name: 'Ensure that can check corectly if transaction is expired',
+  name: 'Ensure that user can check corectly if transaction is expired',
   async fn(chain: Chain, accounts: Map<string, Account>) {
     const deployer = accounts.get('deployer')!;
     const wallet_1 = accounts.get('wallet_1')!;
     const wallet_2 = accounts.get('wallet_2')!;
+    const wallet_3 = accounts.get('wallet_3')!;
     const price_gig = 1000;
     const job_title = 'art';
     const period = 144 * 14; // 14 days
@@ -1615,7 +1618,7 @@ Clarinet.test({
     assertEquals(block.height, 2);
 
     // check before expired
-    let is_expired = chain.callReadOnlyFn(CONTRACT_MP, FNC_CHECK_IS_EXPIRED, [types.uint(1)], wallet_1.address);
+    let is_expired = chain.callReadOnlyFn(CONTRACT_MP, FNC_CHECK_IS_EXPIRED, [types.uint(1)], wallet_3.address);
     assertEquals(is_expired.result, 'false');
 
     // accept work
@@ -1630,22 +1633,23 @@ Clarinet.test({
       block = chain.mineBlock([]);
     }
     // check after expired
-    is_expired = chain.callReadOnlyFn(CONTRACT_MP, FNC_CHECK_IS_EXPIRED, [types.uint(1)], wallet_1.address);
+    is_expired = chain.callReadOnlyFn(CONTRACT_MP, FNC_CHECK_IS_EXPIRED, [types.uint(1)], wallet_3.address);
     assertEquals(is_expired.result, 'true');
 
     // check expired nonexistent gig
-    is_expired = chain.callReadOnlyFn(CONTRACT_MP, FNC_CHECK_IS_EXPIRED, [types.uint(2)], wallet_1.address);
+    is_expired = chain.callReadOnlyFn(CONTRACT_MP, FNC_CHECK_IS_EXPIRED, [types.uint(2)], wallet_3.address);
     assertEquals(is_expired.result, 'false');
   },
 });
 
 // same for can redeem
 Clarinet.test({
-  name: 'Ensure that can check corectly if transaction is redeemable',
+  name: 'Ensure that user can check corectly if transaction is redeemable',
   async fn(chain: Chain, accounts: Map<string, Account>) {
     const deployer = accounts.get('deployer')!;
     const wallet_1 = accounts.get('wallet_1')!;
     const wallet_2 = accounts.get('wallet_2')!;
+    const wallet_3 = accounts.get('wallet_3')!;
     const price_gig = 1000;
     const job_title = 'art';
     const period = 144 * 14; // 14 days
@@ -1678,7 +1682,7 @@ Clarinet.test({
       CONTRACT_MP,
       FNC_CAN_REDEEM,
       [types.uint(1), types.principal(wallet_1.address)],
-      wallet_1.address
+      wallet_3.address
     );
     is_redeemable.result.expectOk().expectBool(false);
 
@@ -1690,7 +1694,7 @@ Clarinet.test({
       CONTRACT_MP,
       FNC_CAN_REDEEM,
       [types.uint(1), types.principal(wallet_1.address)],
-      wallet_1.address
+      wallet_3.address
     );
     is_redeemable.result.expectOk().expectBool(true);
 
@@ -1698,15 +1702,13 @@ Clarinet.test({
       CONTRACT_MP,
       FNC_CAN_REDEEM,
       [types.uint(1), types.principal(wallet_2.address)],
-      wallet_1.address
+      wallet_3.address
     );
     is_redeemable.result.expectOk().expectBool(false);
   },
 });
 
 // redeem back - for previous can redeem
-
-// same for can redeem
 Clarinet.test({
   name: 'Ensure that can redeem when it should be able to',
   async fn(chain: Chain, accounts: Map<string, Account>) {
@@ -1761,6 +1763,14 @@ Clarinet.test({
 
     block.receipts[0].result.expectErr().expectUint(ERR_NOT_CLIENT);
     block.receipts[1].result.expectOk().expectBool(true);
+    //   stx transfer events for gig_1
+    {
+      assertEquals(block.receipts[1].events[0].type, 'stx_transfer_event');
+      assertEquals(block.receipts[1].events[0].stx_transfer_event.sender, CONTRACT_ADDRESS);
+      assertEquals(block.receipts[1].events[0].stx_transfer_event.recipient, wallet_1.address);
+      assertEquals(block.receipts[1].events[0].stx_transfer_event.amount, `${price_gig - price_gig * COMMISSION}`);
+      assertEquals(block.receipts[1].events[0].stx_transfer_event.memo, '');
+    }
 
     // double try to redeem
     block = chain.mineBlock([Tx.contractCall(CONTRACT_MP, FNC_REDEEM_BACK, [types.uint(1)], wallet_1.address)]);
