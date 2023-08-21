@@ -1,5 +1,5 @@
-import { Clarinet, Tx, Chain, Account, types } from 'https://deno.land/x/clarinet@v1.3.1/index.ts';
-import { assertEquals } from 'https://deno.land/std@0.170.0/testing/asserts.ts';
+import { Clarinet, Tx, Chain, Account, types } from 'https://deno.land/x/clarinet@v1.7.1/index.ts';
+import { assertEquals } from 'https://deno.land/std@0.199.0/testing/asserts.ts';
 
 const CONTRACT_MP = 'marketplace';
 const CONTRACT_ADDRESS = 'ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM.marketplace';
@@ -114,7 +114,7 @@ Clarinet.test({
     let gig = chain.callReadOnlyFn(CONTRACT_MP, FNC_GET_GIG, [types.uint(1)], wallet_1.address);
 
     assertEquals(
-      gig.result.expectOk(),
+      gig.result.expectSome(),
       `{amount: u${
         price_gig - price_gig * COMMISSION
       }, block-accepted: u1, block-created: u1, block-disputed: u1, completely-paid: false, from: ${
@@ -400,7 +400,7 @@ Clarinet.test({
     // read only accepted gig
     let gig = chain.callReadOnlyFn(CONTRACT_MP, FNC_GET_GIG, [types.uint(1)], wallet_1.address);
     assertEquals(
-      gig.result.expectOk(),
+      gig.result.expectSome(),
       `{amount: u${
         price_gig - price_gig * COMMISSION
       }, block-accepted: u2, block-created: u1, block-disputed: u1, completely-paid: false, from: ${
@@ -528,7 +528,7 @@ Clarinet.test({
     // read-only completed
     let gig = chain.callReadOnlyFn(CONTRACT_MP, FNC_GET_GIG, [types.uint(1)], wallet_1.address);
     assertEquals(
-      gig.result.expectOk(),
+      gig.result.expectSome(),
       `{amount: u${
         price_gig - price_gig * COMMISSION
       }, block-accepted: u2, block-created: u1, block-disputed: u1, completely-paid: true, from: ${
@@ -735,7 +735,7 @@ Clarinet.test({
     // read-only completed
     let gig = chain.callReadOnlyFn(CONTRACT_MP, FNC_GET_GIG, [types.uint(1)], wallet_1.address);
     assertEquals(
-      gig.result.expectOk(),
+      gig.result.expectSome(),
       `{amount: u${
         price_gig - price_gig * COMMISSION
       }, block-accepted: u2, block-created: u1, block-disputed: u1, completely-paid: true, from: ${
@@ -746,7 +746,7 @@ Clarinet.test({
     );
     let gig2 = chain.callReadOnlyFn(CONTRACT_MP, FNC_GET_GIG, [types.uint(2)], wallet_1.address);
     assertEquals(
-      gig2.result.expectOk(),
+      gig2.result.expectSome(),
       `{amount: u${
         price_gig - price_gig * COMMISSION
       }, block-accepted: u2, block-created: u1, block-disputed: u1, completely-paid: true, from: ${
@@ -895,7 +895,7 @@ Clarinet.test({
     // read-only completed
     let gig = chain.callReadOnlyFn(CONTRACT_MP, FNC_GET_GIG, [types.uint(1)], wallet_1.address);
     assertEquals(
-      gig.result.expectOk(),
+      gig.result.expectSome(),
       `{amount: u${
         price_gig - price_gig * COMMISSION
       }, block-accepted: u2, block-created: u1, block-disputed: u4, completely-paid: true, from: ${
@@ -906,7 +906,7 @@ Clarinet.test({
     );
     let gig2 = chain.callReadOnlyFn(CONTRACT_MP, FNC_GET_GIG, [types.uint(2)], wallet_1.address);
     assertEquals(
-      gig2.result.expectOk(),
+      gig2.result.expectSome(),
       `{amount: u${
         price_gig - price_gig * COMMISSION
       }, block-accepted: u2, block-created: u1, block-disputed: u4, completely-paid: true, from: ${
@@ -1123,7 +1123,7 @@ Clarinet.test({
     // read-only completed
     let gig = chain.callReadOnlyFn(CONTRACT_MP, FNC_GET_GIG, [types.uint(1)], wallet_1.address);
     assertEquals(
-      gig.result.expectOk(),
+      gig.result.expectSome(),
       `{amount: u${
         price_gig - price_gig * COMMISSION
       }, block-accepted: u2, block-created: u1, block-disputed: u4, completely-paid: true, from: ${
@@ -1134,7 +1134,7 @@ Clarinet.test({
     );
     let gig2 = chain.callReadOnlyFn(CONTRACT_MP, FNC_GET_GIG, [types.uint(2)], wallet_1.address);
     assertEquals(
-      gig2.result.expectOk(),
+      gig2.result.expectSome(),
       `{amount: u${
         price_gig - price_gig * COMMISSION
       }, block-accepted: u2, block-created: u1, block-disputed: u4, completely-paid: true, from: ${
@@ -1145,7 +1145,7 @@ Clarinet.test({
     );
     let gig3 = chain.callReadOnlyFn(CONTRACT_MP, FNC_GET_GIG, [types.uint(3)], wallet_1.address);
     assertEquals(
-      gig3.result.expectOk(),
+      gig3.result.expectSome(),
       `{amount: u${
         price_gig - price_gig * COMMISSION
       }, block-accepted: u2, block-created: u1, block-disputed: u4, completely-paid: true, from: ${
@@ -1280,7 +1280,7 @@ Clarinet.test({
     // read-only completed
     let gig = chain.callReadOnlyFn(CONTRACT_MP, FNC_GET_GIG, [types.uint(1)], wallet_1.address);
     assertEquals(
-      gig.result.expectOk(),
+      gig.result.expectSome(),
       `{amount: u${
         price_gig - price_gig * COMMISSION
       }, block-accepted: u2, block-created: u1, block-disputed: u3, completely-paid: true, from: ${
@@ -1291,7 +1291,7 @@ Clarinet.test({
     );
     let gig2 = chain.callReadOnlyFn(CONTRACT_MP, FNC_GET_GIG, [types.uint(2)], wallet_1.address);
     assertEquals(
-      gig2.result.expectOk(),
+      gig2.result.expectSome(),
       `{amount: u${
         price_gig - price_gig * COMMISSION
       }, block-accepted: u2, block-created: u1, block-disputed: u3, completely-paid: true, from: ${
@@ -1368,7 +1368,7 @@ Clarinet.test({
     // read-only completed
     let gig3 = chain.callReadOnlyFn(CONTRACT_MP, FNC_GET_GIG, [types.uint(3)], wallet_1.address);
     assertEquals(
-      gig3.result.expectOk(),
+      gig3.result.expectSome(),
       `{amount: u${
         price_gig - price_gig * COMMISSION
       }, block-accepted: u2, block-created: u1, block-disputed: u2021, completely-paid: true, from: ${
@@ -1379,7 +1379,7 @@ Clarinet.test({
     );
     let gig4 = chain.callReadOnlyFn(CONTRACT_MP, FNC_GET_GIG, [types.uint(4)], wallet_1.address);
     assertEquals(
-      gig4.result.expectOk(),
+      gig4.result.expectSome(),
       `{amount: u${
         price_gig - price_gig * COMMISSION
       }, block-accepted: u2, block-created: u1, block-disputed: u2021, completely-paid: true, from: ${
@@ -1515,7 +1515,7 @@ Clarinet.test({
     // read-only completed
     let gig = chain.callReadOnlyFn(CONTRACT_MP, FNC_GET_GIG, [types.uint(1)], wallet_1.address);
     assertEquals(
-      gig.result.expectOk(),
+      gig.result.expectSome(),
       `{amount: u${
         price_gig - price_gig * COMMISSION
       }, block-accepted: u2, block-created: u1, block-disputed: u3, completely-paid: true, from: ${
@@ -1526,7 +1526,7 @@ Clarinet.test({
     );
     let gig2 = chain.callReadOnlyFn(CONTRACT_MP, FNC_GET_GIG, [types.uint(2)], wallet_1.address);
     assertEquals(
-      gig2.result.expectOk(),
+      gig2.result.expectSome(),
       `{amount: u${
         price_gig - price_gig * COMMISSION
       }, block-accepted: u2, block-created: u1, block-disputed: u3, completely-paid: true, from: ${
@@ -1555,7 +1555,7 @@ Clarinet.test({
     // read-only completed
     let gig3 = chain.callReadOnlyFn(CONTRACT_MP, FNC_GET_GIG, [types.uint(3)], wallet_1.address);
     assertEquals(
-      gig3.result.expectOk(),
+      gig3.result.expectSome(),
       `{amount: u${
         price_gig - price_gig * COMMISSION
       }, block-accepted: u2, block-created: u1, block-disputed: u1, completely-paid: false, from: ${
@@ -1566,7 +1566,7 @@ Clarinet.test({
     );
     let gig4 = chain.callReadOnlyFn(CONTRACT_MP, FNC_GET_GIG, [types.uint(4)], wallet_1.address);
     assertEquals(
-      gig4.result.expectOk(),
+      gig4.result.expectSome(),
       `{amount: u${
         price_gig - price_gig * COMMISSION
       }, block-accepted: u2, block-created: u1, block-disputed: u1, completely-paid: false, from: ${

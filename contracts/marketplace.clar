@@ -38,7 +38,7 @@
 ;; from: client who creates the gig
 ;; to: artist
 ;; JOB: string, but one of these
-;; Amount: 
+;; Amount:
 ;; Currency: just STX (others later on)
 ;; Date-created:
 ;; Date-accepted: needs a value at initialization, block 1 till overwrites it with the artist value
@@ -54,11 +54,11 @@
 ;; after vote ends, the function can be called by anyone and the funds can be moved in the decided manner
 
 
-(define-map gig uint { 
+(define-map gig uint {
   from: principal,
   to: principal,
-  job: (string-ascii 20), 
-  amount: uint, 
+  job: (string-ascii 20),
+  amount: uint,
   ;; currency: (string-ascii 20),
   block-created: uint,
   block-accepted: uint,
@@ -69,12 +69,29 @@
   satisfaction-disputed: (string-ascii 20),
   completely-paid: bool })
 
+;; getter and setter for gig
+(define-read-only (get-gig (gig-id uint))
+  (map-get? gig gig-id))
+
+;; to be used to see if time period is expired
+;; only for accepted
+(define-read-only (check-is-expired (gig-id uint))
+  (let ((gig-info (unwrap! (map-get? gig gig-id) false)))
+    (and (is-eq (get status gig-info) "accepted")
+      (> block-height (+ (get block-accepted gig-info) (get period gig-info))))))
 
 ;; private functions
 (define-private (increment-gig-count)
   (begin
     (var-set gig-count (+ (var-get gig-count) u1))
     (var-get gig-count)))
+
+(define-private (is-satisfaction-valid (satisfaction (string-ascii 20)))
+  (or (is-eq satisfaction vote-1)
+      (is-eq satisfaction vote-2)
+      (is-eq satisfaction vote-3)
+      (is-eq satisfaction vote-4)))
+
 
 ;; create gig
 (define-public (create-gig (artist principal) (amount uint) (job-title (string-ascii 20)) (period uint))
@@ -85,7 +102,7 @@
     (try! (stx-transfer? fee tx-sender (var-get contract-owner)))
     (map-set gig gig-id {
       from: tx-sender, to: artist,
-      job: job-title, amount: gig-amount, block-created: block-height, block-accepted: u1, block-disputed: u1, period: period, status: "pending", 
+      job: job-title, amount: gig-amount, block-created: block-height, block-accepted: u1, block-disputed: u1, period: period, status: "pending",
       satisfaction: "initialized", satisfaction-disputed: "initialized", completely-paid: false})
     (ok gig-id)))
 
@@ -93,109 +110,96 @@
 ;; accept gig as artist, only if pending
 ;; check if you are the artist
 ;; check if pending
+;; check if request expired
 ;; update date-accepted block-height
-(define-public (accept-gig (gig-id uint)) 
-  ;; refund will be date-accepted+period, when date-accepted is not 1
-  (begin 
-    (asserts! (is-eq tx-sender (get to (unwrap! (map-get? gig gig-id) ERR_NOT_FOUND))) ERR_NOT_ARTIST)
-    (let ((gig-info (unwrap-panic (map-get? gig gig-id)))) 
-      (asserts! (is-eq (get status gig-info) "pending") ERR_NOT_PENDING)
-      (asserts! (<= block-height (+ (get block-created gig-info) (* u144 days))) ERR_EXPIRED)
-      (map-set gig gig-id (merge gig-info {block-accepted: block-height, status: "accepted"}))
-      (ok gig-id))))
+(define-public (accept-gig (gig-id uint))
+  (let ((gig-info (unwrap! (map-get? gig gig-id) ERR_NOT_FOUND)))
+    (asserts! (is-eq tx-sender (get to gig-info)) ERR_NOT_ARTIST)
+    (asserts! (is-eq (get status gig-info) "pending") ERR_NOT_PENDING)
+    (asserts! (<= block-height (+ (get block-created gig-info) (* u144 days))) ERR_EXPIRED)
+    (map-set gig gig-id (merge gig-info {block-accepted: block-height, status: "accepted"}))
+    (ok gig-id)))
 
 
 ;; decline gig as artist, only if pending
 ;; check if you are the artist
 ;; check if pending
+;; check if request expired
 ;; send back the stx
-(define-public (decline-gig (gig-id uint)) 
-  (begin 
-    (asserts! (is-eq tx-sender (get to (unwrap! (map-get? gig gig-id) ERR_NOT_FOUND))) ERR_NOT_ARTIST)
-    (let ((gig-info (unwrap-panic (map-get? gig gig-id)))) 
-      (asserts! (is-eq (get status gig-info) "pending") ERR_NOT_PENDING)
-      (asserts! (<= block-height (+ (get block-created gig-info) (* u144 days))) ERR_EXPIRED)
-      (try! (as-contract (stx-transfer? (get amount gig-info) tx-sender (get from gig-info))))
-      (map-set gig gig-id (merge gig-info {status: "declined", completely-paid: true}))
-      (ok gig-id))))
+(define-public (decline-gig (gig-id uint))
+  (let ((gig-info (unwrap! (map-get? gig gig-id) ERR_NOT_FOUND)))
+    (asserts! (is-eq tx-sender (get to gig-info)) ERR_NOT_ARTIST)
+    (asserts! (is-eq (get status gig-info) "pending") ERR_NOT_PENDING)
+    (asserts! (<= block-height (+ (get block-created gig-info) (* u144 days))) ERR_EXPIRED)
+    (try! (as-contract (stx-transfer? (get amount gig-info) tx-sender (get from gig-info))))
+    (map-set gig gig-id (merge gig-info {status: "declined", completely-paid: true}))
+    (ok gig-id)))
 
-
-;; getter and setter for gig
-(define-read-only (get-gig (gig-id uint)) 
-  (ok (unwrap! (map-get? gig gig-id) ERR_NOT_FOUND)))
-
-;; redeem back funds as client if no answer in 7-14 days
-;; if client who created the gig, gig still pending, and created block-heigh + 14 days > block height 
+;; redeem back funds as client if no answer in 14 days
+;; if client who created the gig, gig still pending, and created block-heigh + 14 days > block height
 (define-read-only (can-redeem (gig-id uint) (client principal))
-  (let ((gig-info (unwrap-panic (map-get? gig gig-id)))) 
-    (if (and 
-      (and (is-eq (get from gig-info) client) (is-eq (get status gig-info) "pending"))
-        (> block-height (+ (get block-created gig-info) (* u144 days))))
-      (ok true)
-      (ok false))))
+  (let ((gig-info (unwrap-panic (map-get? gig gig-id))))
+    (ok (can-redeem-internal gig-info client))))
 
+;; redeem back funds as client if no answer in 14 days
+;; if client who created the gig, gig still pending, and created block-heigh + 14 days > block height
+(define-private (can-redeem-internal (gig-info {
+    from: principal,
+    to: principal,
+    job: (string-ascii 20),
+    amount: uint,
+    block-created: uint,
+    block-accepted: uint,
+    block-disputed: uint,
+    period: uint,
+    status: (string-ascii 20),
+    satisfaction: (string-ascii 20),
+    satisfaction-disputed: (string-ascii 20),
+    completely-paid: bool })
+  (client principal))
+  (and
+    (and (is-eq (get from gig-info) client) (is-eq (get status gig-info) "pending"))
+    (> block-height (+ (get block-created gig-info) (* u144 days)))))
 
 ;; redeem funds back
 ;; set status expired
 ;; completely paid true
-(define-public (redeem-back (gig-id uint)) 
-  (begin 
-    (asserts! (is-some (map-get? gig gig-id)) ERR_NOT_FOUND)
-    (let ((gig-info (unwrap-panic (map-get? gig gig-id)))) 
+(define-public (redeem-back (gig-id uint))
+  (let ((gig-info (unwrap! (map-get? gig gig-id) ERR_NOT_FOUND)))
       (asserts! (is-eq tx-sender (get from gig-info)) ERR_NOT_CLIENT)
-      (asserts! (unwrap-panic (can-redeem gig-id tx-sender)) ERR_NOT_REDEEMABLE)
+      (asserts! (can-redeem-internal gig-info tx-sender) ERR_NOT_REDEEMABLE)
       (try! (as-contract (stx-transfer? (get amount gig-info) tx-sender (get from gig-info))))
-      (ok (map-set gig gig-id (merge gig-info {status: "expired", completely-paid: true}))))))
+      (ok (map-set gig gig-id (merge gig-info {status: "expired", completely-paid: true})))))
 
 
 ;; go-to-dispute
 ;; if time passed and DAO wallet wants to vote
-;; if client/artist know the gig will not be done till specified end of time 
+;; if client/artist know the gig will not be done till specified end of time
 
-;; time end for gig -> block-created + period < current-block-height
-;; if status == acepted => block-created != 1
-(define-public (send-to-dispute (gig-id uint)) 
-  (let ((gig-info (unwrap-panic (map-get? gig gig-id))))
+;; time end for gig -> block-accepted + period < current-block-height
+;; if status == acepted => block-accepted != 1
+(define-public (send-to-dispute (gig-id uint))
+  (let ((gig-info (unwrap! (map-get? gig gig-id) ERR_NOT_FOUND)))
     (asserts! (or (is-eq tx-sender (get from gig-info)) (is-eq tx-sender (get to gig-info))) ERR_NOT_PARTICIPANT)
     (asserts! (is-eq (get status gig-info) "accepted") ERR_NOT_ACCEPTED)
     (asserts! (<= block-height (+ (get block-accepted gig-info) (* u144 days))) ERR_EXPIRED)
     (ok (map-set gig gig-id (merge gig-info {block-disputed: block-height, status: "disputed"})))))
 
 
-;; if time expired, DAO can send it to dispute 
+;; if time expired, DAO can send it to dispute
 (define-public (send-to-dispute-passed-time-acceptance (gig-id uint))
-  (let ((gig-info (unwrap-panic (map-get? gig gig-id))))
+  (let ((gig-info (unwrap! (map-get? gig gig-id) ERR_NOT_FOUND)))
     (asserts! (is-eq (var-get contract-owner) tx-sender)  ERR_NOT_DAO)
     (asserts! (> block-height (+ (get block-accepted gig-info) (get period gig-info))) ERR_NOT_EXPIRED)
     (asserts! (is-eq (get status gig-info) "accepted") ERR_NOT_ACCEPTED)
     (ok (map-set gig gig-id (merge gig-info {block-disputed: block-height, status: "disputed"})))))
 
-;; to be used to see if time period is expired
-;; only for accepted
-(define-read-only (check-is-expired (gig-id uint)) 
-  (if (is-none (map-get? gig gig-id))
-    false
-    (let ((gig-info (unwrap-panic (map-get? gig gig-id))))
-      (if (and (is-eq (get status gig-info) "accepted") (> block-height (+ (get block-accepted gig-info) (get period gig-info))))
-        true
-        false))))
-
-
-(define-private (is-satisfaction-valid (satisfaction (string-ascii 20))) 
-  (if (is-eq satisfaction vote-1) true
-    (if (is-eq satisfaction vote-2) true
-      (if (is-eq satisfaction vote-3) true
-        (if (is-eq satisfaction vote-4) true
-          false)))))
-
-
 ;; vote result as client
 ;; the gig has to be in status: accepted
 ;; the status will become artist-review
 (define-public (satisfaction-vote-gig-as-client (gig-id uint) (satisfaction-vote (string-ascii 20)))
-  (begin 
+  (let ((gig-info (unwrap! (map-get? gig gig-id) ERR_NOT_FOUND)))
     (asserts! (is-satisfaction-valid satisfaction-vote)  ERR_INVALID_SATISFACTION)
-    (let ((gig-info (unwrap-panic (map-get? gig gig-id))))
     (asserts! (is-eq tx-sender (get from gig-info)) ERR_NOT_CLIENT)
     (asserts! (is-eq "accepted" (get status gig-info)) ERR_NOT_ACCEPTED)
     ;; if the time is passed, will still let him vote
@@ -209,17 +213,19 @@
       (if (is-eq satisfaction-vote vote-4)
         (ok (map-set gig gig-id (merge gig-info {block-disputed: block-height, status: "disputed" , satisfaction: satisfaction-vote})))
         ;; else change status to await for artist vote
-        (ok (map-set gig gig-id (merge gig-info {status: "artist-review" , satisfaction: satisfaction-vote}))))))))
+        (ok (map-set gig gig-id (merge gig-info {status: "artist-review" , satisfaction: satisfaction-vote})))))))
 
 
-(define-public (satisfaction-acceptance-as-artist (gig-id uint) (acceptance bool)) 
-  (let ((gig-info (unwrap-panic (map-get? gig gig-id))))
+;; can only be called when status in artist-review
+;; status artist-review implies that client submitted vote-2 or vote-3
+(define-public (satisfaction-acceptance-as-artist (gig-id uint) (acceptance bool))
+  (let ((gig-info (unwrap! (map-get? gig gig-id) ERR_NOT_FOUND)))
     (asserts! (is-eq tx-sender (get to gig-info)) ERR_NOT_ARTIST)
     (asserts! (is-eq "artist-review" (get status gig-info)) ERR_NOT_ACCEPTANCE)
     ;; if good -> pay money
-    (if acceptance 
+    (if acceptance
       (if (is-eq (get satisfaction gig-info) vote-2) ;; pay 75% and 25%
-        (begin 
+        (begin
           (as-contract (try! (stx-transfer? (/ (* (get amount gig-info) u75) u100) tx-sender (get to gig-info))))
           (as-contract (try! (stx-transfer? (/ (* (get amount gig-info) u25) u100) tx-sender (get from gig-info))))
           (ok (map-set gig gig-id (merge gig-info {status: "completed", completely-paid: true}))))
@@ -235,26 +241,27 @@
 ;; DAO vote on the matters
 ;; vote with multisig wallet
 (define-public (dao-vote-satisfaction (gig-id uint) (satisfaction-vote (string-ascii 20)))
-  (begin 
+  (let ((gig-info (unwrap! (map-get? gig gig-id) ERR_NOT_FOUND)))
     (asserts! (is-eq tx-sender (var-get contract-owner)) ERR_NOT_DAO)
     (asserts! (is-satisfaction-valid satisfaction-vote)  ERR_INVALID_SATISFACTION)
-    (let ((gig-info (unwrap-panic (map-get? gig gig-id))))
-      (asserts! (is-eq (get status gig-info) "disputed")  ERR_NOT_DISPUTED)
-      ;; if 0 -> all money to client
-      (if (is-eq satisfaction-vote vote-1) 
-        (as-contract (try! (stx-transfer? (get amount gig-info) tx-sender (get to gig-info))))
-        (if (is-eq satisfaction-vote vote-2) 
+    (asserts! (or (is-eq (get status gig-info) "disputed")
+      (and (is-eq (get status gig-info) "accepted")
+           (> block-height (+ (get block-accepted gig-info) (get period gig-info)))))  ERR_NOT_DISPUTED)
+    ;; if 0 -> all money to client
+    (if (is-eq satisfaction-vote vote-1)
+      (as-contract (try! (stx-transfer? (get amount gig-info) tx-sender (get to gig-info))))
+      (if (is-eq satisfaction-vote vote-2)
+        (begin
+          (as-contract (try! (stx-transfer? (/ (* (get amount gig-info) u75) u100) tx-sender (get to gig-info))))
+          (as-contract (try! (stx-transfer? (/ (* (get amount gig-info) u25) u100) tx-sender (get from gig-info)))))
+        (if (is-eq satisfaction-vote vote-3)
           (begin
-            (as-contract (try! (stx-transfer? (/ (* (get amount gig-info) u75) u100) tx-sender (get to gig-info))))
-            (as-contract (try! (stx-transfer? (/ (* (get amount gig-info) u25) u100) tx-sender (get from gig-info)))))
-          (if (is-eq satisfaction-vote vote-3) 
-            (begin
-              (as-contract (try! (stx-transfer? (/ (* (get amount gig-info) u50) u100) tx-sender (get to gig-info))))
-              (as-contract (try! (stx-transfer? (/ (* (get amount gig-info) u50) u100) tx-sender (get from gig-info)))))
-            ;; satisfaction-vote-4            
-            (as-contract (try! (stx-transfer? (get amount gig-info) tx-sender (get from gig-info)))))))
-      ;; set map with satisfaction-disputed: value-parsed, completely-paid: true, status: completed
-      (ok (map-set gig gig-id (merge gig-info {status: "completed", satisfaction-disputed: satisfaction-vote, completely-paid: true}))))))
+            (as-contract (try! (stx-transfer? (/ (* (get amount gig-info) u50) u100) tx-sender (get to gig-info))))
+            (as-contract (try! (stx-transfer? (/ (* (get amount gig-info) u50) u100) tx-sender (get from gig-info)))))
+          ;; satisfaction-vote-4
+          (as-contract (try! (stx-transfer? (get amount gig-info) tx-sender (get from gig-info)))))))
+    ;; set map with satisfaction-disputed: value-parsed, completely-paid: true, status: completed
+    (ok (map-set gig gig-id (merge gig-info {status: "completed", satisfaction-disputed: satisfaction-vote, completely-paid: true})))))
 
 
 
